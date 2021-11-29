@@ -2,7 +2,6 @@
 // const products = [];
 
 const Product = require('../models/product');
-const Cart = require('../models/cart');
 
 
 
@@ -235,6 +234,31 @@ exports.postCartDeleteProduct = (req, res, next) => {
   .catch(err => console.log(err));
 }
 
+exports.postOrder = (req, res, next) => {
+  let fetchedCart;
+  req.user.getCart()
+  .then(cart => {
+    fetchedCart = cart;
+    return cart.getProducts()
+  })
+  .then(products => {
+    return req.user.createOrder()
+    .then(order => {
+      return order.addProducts(products.map(product => {
+        product.orderItem = { quantity : product.cartItem.quantity };
+        return product;
+      }));
+    })
+    .catch(err => console.log(err));
+  })
+  .then(result => {
+    return fetchedCart.setProducts(null);
+  })
+  .then(result => {
+    res.redirect('/shop/orders');
+  })
+  .catch(err => console.log(err))
+}
 
 exports.getCheckout = (req, res, next) => {
   res.render(
@@ -249,12 +273,19 @@ exports.getCheckout = (req, res, next) => {
 
 
 exports.getOrders = (req, res, next) => {
-  res.render(
-    'shop/orders',
-    {
-      pageTitle: 'Orders',
-      path:'/shop/orders',
-      activeShop: true,
-      productCSS: true
-    }); //Working Fine FOr Pug But One More Param Added on Next Line
+  req.user.getOrders({include: ['products']})
+  .then(orders => {
+    res.render(
+      'shop/orders',
+      {
+        pageTitle: 'Orders',
+        path:'/shop/orders',
+        activeShop: true,
+        productCSS: true,
+        orders: orders
+      }
+    ); //Working Fine FOr Pug But One More Param Added on Next Line
+  })
+  .catch(err => console.log(err));
+
 }
